@@ -1,0 +1,10 @@
+# Xcode user state
+xcuserdata/
+*.xcuserstate
+DerivedData/
+
+# macOS
+.DS_Store
+
+# Raw data exports (customer PII; the app seeds from DefaultCustomers.swift)
+supabase_customers.csv

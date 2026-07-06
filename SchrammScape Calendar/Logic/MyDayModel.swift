@@ -1,0 +1,150 @@
+//
+//  MyDayModel.swift
+//  SchrammScape Calendar
+//
+//  State for the My Day tab: today's job records, map geocoding,
+//  check-in / complete time tracking, and duration feedback.
+//
+
+import Foundation
+import SwiftData
+import MapKit
+
+/// Feedback shown after completing a job: actual vs planned duration.
+struct DurationFeedback: Identifiable {
+    let id = UUID()
+    let record: WorkRecord
+    let actualMinutes: Int
+    let plannedMinutes: Int?
+
+    var differenceMinutes: Int? {
+        guard let planned = plannedMinutes else { return nil }
+        return actualMinutes - planned
+    }
+}
+
+@MainActor
+@Observable
+final class MyDayModel {
+    var dayStarted = false
+    var records: [WorkRecord] = []
+    var feedback: DurationFeedback?
+    var statusMessage = ""
+
+    func startDay(context: ModelContext) {
+        loadToday(context: context)
+        dayStarted = true
+        Task { await geocodeMissing(context: context) }
+    }
+
+    func loadToday(context: ModelContext) {
+        let calendar = Calendar.current
+        let dayStart = calendar.startOfDay(for: .now)
+        guard let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) else { return }
+        let descriptor = FetchDescriptor<WorkRecord>(
+            predicate: #Predicate { $0.scheduledStart >= dayStart && $0.scheduledStart < dayEnd },
+            sortBy: [SortDescriptor(\.scheduledStart)]
+        )
+        records = (try? context.fetch(descriptor)) ?? []
+    }
+
+    /// Geocodes any record missing coordinates, caching results on the record.
+    func geocodeMissing(context: ModelContext) async {
+        for record in records where record.latitude == nil && !record.address.isEmpty {
+            guard let location = await GeocodingService.geocode(record.address) else {
+                // Leave the pin off the map; directions can still open by address.
+                continue
+            }
+            record.latitude = location.coordinate.latitude
+            record.longitude = location.coordinate.longitude
+        }
+        try? context.save()
+    }
+
+    func checkIn(_ record: WorkRecord, context: ModelContext) {
+        record.actualStart = .now
+        record.statusValue = .inProgress
+        try? context.save()
+    }
+
+    func complete(_ record: WorkRecord, context: ModelContext) {
+        if record.actualStart == nil {
+            // Completed without a check-in: assume the scheduled start.
+            record.actualStart = record.scheduledStart
+        }
+        record.actualEnd = .now
+        record.statusValue = .completed
+        try? context.save()
+        if let actual = record.actualDurationMinutes {
+            feedback = DurationFeedback(
+                record: record,
+                actualMinutes: actual,
+                plannedMinutes: record.plannedDurationMinutes
+            )
+        }
+    }
+
+    /// Saves the measured duration as the customer's new default.
+    func updateCustomerDuration(_ record: WorkRecord, minutes: Int, context: ModelContext) {
+        let name = record.customerName
+        let descriptor = FetchDescriptor<Customer>(predicate: #Predicate { $0.name == name })
+        guard let customer = try? context.fetch(descriptor).first else {
+            statusMessage = "No customer named \(name) found to update."
+            return
+        }
+        customer.durationLabel = String(minutes)
+        try? context.save()
+        statusMessage = "\(name)'s default duration updated to \(minutes) min."
+    }
+
+    // MARK: - Day plan
+
+    /// Total planned work minutes today; falls back to the scheduled window
+    /// when a job has no stored duration.
+    var totalPlannedMinutes: Int {
+        records.reduce(0) { total, record in
+            let planned = record.plannedDurationMinutes
+                ?? Int(record.scheduledEnd.timeIntervalSince(record.scheduledStart) / 60)
+            return total + max(0, planned)
+        }
+    }
+
+    /// Minutes as "H:MM", e.g. 375 → "6:15".
+    static func hhmm(_ minutes: Int) -> String {
+        String(format: "%d:%02d", minutes / 60, minutes % 60)
+    }
+
+    /// "8 jobs today — 6:15 of planned work"
+    var dayPlanSummary: String {
+        guard !records.isEmpty else { return "" }
+        let jobs = "\(records.count) job\(records.count == 1 ? "" : "s") today"
+        return "\(jobs) — \(Self.hhmm(totalPlannedMinutes)) of planned work"
+    }
+
+    // MARK: - Progress
+
+    var completedCount: Int {
+        records.filter { $0.statusValue == .completed }.count
+    }
+
+    /// Positive = running ahead of schedule, negative = behind.
+    var minutesAheadOfSchedule: Int {
+        records.filter { $0.statusValue == .completed }.reduce(0) { total, record in
+            guard let actual = record.actualDurationMinutes,
+                  let planned = record.plannedDurationMinutes else { return total }
+            return total + (planned - actual)
+        }
+    }
+
+    var progressSummary: String {
+        guard !records.isEmpty else { return "" }
+        var text = "\(completedCount) of \(records.count) jobs done"
+        let delta = minutesAheadOfSchedule
+        if completedCount > 0, delta != 0 {
+            text += delta > 0
+                ? ", running \(delta) min ahead"
+                : ", running \(-delta) min behind"
+        }
+        return text
+    }
+}
