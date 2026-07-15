@@ -164,7 +164,7 @@ struct WorkLogView: View {
                                 Text(record.jobTitle)
                                 HStack {
                                     if let start = record.actualStart, let end = record.actualEnd {
-                                        Text("\(start.formatted(.dateTime.hour().minute())) – \(end.formatted(.dateTime.hour().minute()))")
+                                        Text("\(TimeSlot.display(start)) – \(TimeSlot.display(end))")
                                     }
                                     if let minutes = record.actualDurationMinutes {
                                         Text("(\(WorkSummaryBuilder.durationLabel(minutes)))")

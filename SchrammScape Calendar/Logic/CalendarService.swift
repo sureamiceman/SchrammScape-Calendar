@@ -9,14 +9,16 @@
 
 import EventKit
 
-/// A read-only snapshot of an event already on the user's calendar.
+/// A snapshot of an event already on the user's calendar.
 struct ExistingEvent: Identifiable {
     let id: String
+    let eventIdentifier: String?
     let title: String
     let location: String
     let start: Date
     let end: Date
     let calendarTitle: String
+    let isEditable: Bool
 }
 
 @MainActor
@@ -46,6 +48,30 @@ final class CalendarService {
         }
     }
 
+    // MARK: - Calendar selection
+
+    /// User-chosen target calendar; "" / unknown falls back to the system default.
+    static let selectedCalendarKey = "selectedCalendarID"
+
+    /// All calendars the app could write events to.
+    func writableCalendars() -> [EKCalendar] {
+        store.calendars(for: .event)
+            .filter { $0.allowsContentModifications }
+            .sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+    }
+
+    /// The calendar new events go to: the user's selection if it still exists
+    /// and is writable, otherwise the system default.
+    var targetCalendar: EKCalendar? {
+        if let id = UserDefaults.standard.string(forKey: Self.selectedCalendarKey),
+           !id.isEmpty,
+           let calendar = store.calendar(withIdentifier: id),
+           calendar.allowsContentModifications {
+            return calendar
+        }
+        return store.defaultCalendarForNewEvents
+    }
+
     /// Creates a new event or updates the existing one, returning its identifier.
     @discardableResult
     func save(_ event: ScheduledEvent, existingIdentifier: String?) throws -> String {
@@ -54,7 +80,7 @@ final class CalendarService {
             ekEvent = found
         } else {
             ekEvent = EKEvent(eventStore: store)
-            guard let calendar = store.defaultCalendarForNewEvents else {
+            guard let calendar = targetCalendar else {
                 throw CalendarError.noDefaultCalendar
             }
             ekEvent.calendar = calendar
@@ -80,13 +106,23 @@ final class CalendarService {
                 ExistingEvent(
                     // Recurring events share an identifier, so include the start time for uniqueness.
                     id: "\(event.eventIdentifier ?? UUID().uuidString)-\(event.startDate.timeIntervalSince1970)",
+                    eventIdentifier: event.eventIdentifier,
                     title: event.title ?? "Untitled",
                     location: event.location ?? "",
                     start: event.startDate,
                     end: event.endDate,
-                    calendarTitle: event.calendar?.title ?? ""
+                    calendarTitle: event.calendar?.title ?? "",
+                    isEditable: event.calendar?.allowsContentModifications ?? false
                 )
             }
+    }
+
+    /// The underlying store — required by the system event-edit UI, which must
+    /// share the store instance of the event being edited.
+    var eventStore: EKEventStore { store }
+
+    func ekEvent(identifier: String) -> EKEvent? {
+        store.event(withIdentifier: identifier)
     }
 
     func remove(identifier: String) throws {

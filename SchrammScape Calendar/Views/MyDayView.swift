@@ -172,7 +172,7 @@ private struct JobStopCard: View {
                 Text(record.address)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text("\(record.scheduledStart.formatted(.dateTime.hour().minute())) – \(record.scheduledEnd.formatted(.dateTime.hour().minute()))")
+                Text("\(TimeSlot.display(record.scheduledStart)) – \(TimeSlot.display(record.scheduledEnd))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -242,7 +242,7 @@ private struct JobStopCard: View {
                 .fontWeight(.semibold)
             case .inProgress:
                 if let start = record.actualStart {
-                    Text("Checked in at \(start.formatted(.dateTime.hour().minute()))")
+                    Text("Checked in at \(TimeSlot.display(start))")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -503,7 +503,7 @@ private struct RecordToggleRow: View {
                     .foregroundStyle(selected ? Color.green : Color.secondary)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(record.jobTitle)
-                    Text("\(record.scheduledStart.formatted(.dateTime.hour().minute())) · \(record.address)")
+                    Text("\(TimeSlot.display(record.scheduledStart)) · \(record.address)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

@@ -18,6 +18,7 @@ struct SchrammScape_CalendarApp: App {
         } catch {
             fatalError("Could not create ModelContainer: \(error)")
         }
+        JobAlertService.shared.setUp(container: container)
     }
 
     var body: some Scene {

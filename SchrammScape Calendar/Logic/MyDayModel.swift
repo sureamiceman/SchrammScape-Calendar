@@ -34,7 +34,12 @@ final class MyDayModel {
     func startDay(context: ModelContext) {
         loadToday(context: context)
         dayStarted = true
-        Task { await geocodeMissing(context: context) }
+        Task {
+            await geocodeMissing(context: context)
+            // Arm the arrival fences once coordinates are in place.
+            await JobAlertService.shared.requestAuthorization()
+            JobAlertService.shared.syncArrivalAlerts(records: records)
+        }
     }
 
     func loadToday(context: ModelContext) {
@@ -65,6 +70,9 @@ final class MyDayModel {
         record.actualStart = .now
         record.statusValue = .inProgress
         try? context.save()
+        // Swap the arrival fence for a departure fence.
+        JobAlertService.shared.cancelAlerts(record: record)
+        JobAlertService.shared.scheduleDepartureAlert(record: record)
     }
 
     func complete(_ record: WorkRecord, context: ModelContext) {
@@ -75,6 +83,7 @@ final class MyDayModel {
         record.actualEnd = .now
         record.statusValue = .completed
         try? context.save()
+        JobAlertService.shared.cancelAlerts(record: record)
         if let actual = record.actualDurationMinutes {
             feedback = DurationFeedback(
                 record: record,

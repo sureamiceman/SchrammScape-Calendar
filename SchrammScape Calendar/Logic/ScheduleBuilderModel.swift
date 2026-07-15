@@ -380,6 +380,8 @@ final class ScheduleBuilderModel {
                 if hadId { updated += 1 } else { created += 1 }
             }
             try? context.save()
+            // If today was (re)scheduled, refresh the GPS arrival fences.
+            JobAlertService.shared.syncTodayAlerts(context: context)
             var parts: [String] = []
             if created > 0 { parts.append("\(created) added") }
             if updated > 0 { parts.append("\(updated) updated") }

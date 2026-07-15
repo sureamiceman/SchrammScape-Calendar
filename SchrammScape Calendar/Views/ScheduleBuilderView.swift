@@ -9,6 +9,7 @@
 
 import SwiftUI
 import SwiftData
+import EventKit
 
 struct ScheduleBuilderView: View {
     @Environment(\.modelContext) private var context
@@ -19,6 +20,8 @@ struct ScheduleBuilderView: View {
     @State private var shareItem: ShareItem?
     @State private var showingCalendarPeek = false
     @State private var notesTarget: NotesTarget?
+    @State private var writableCalendars: [EKCalendar] = []
+    @AppStorage(CalendarService.selectedCalendarKey) private var selectedCalendarID = ""
 
     private struct NotesTarget: Identifiable {
         let id: JobEntry.ID
@@ -108,17 +111,67 @@ struct ScheduleBuilderView: View {
                 } label: {
                     Label("View Existing Calendar", systemImage: "calendar")
                 }
+                if writableCalendars.isEmpty {
+                    Button {
+                        Task { await loadCalendars(requestingAccess: true) }
+                    } label: {
+                        Label("Choose Calendar for Events…", systemImage: "calendar.badge.checkmark")
+                    }
+                } else {
+                    Picker(selection: $selectedCalendarID) {
+                        Text("System Default").tag("")
+                        ForEach(writableCalendars, id: \.calendarIdentifier) { calendar in
+                            HStack {
+                                Circle()
+                                    .fill(Color(cgColor: calendar.cgColor))
+                                    .frame(width: 10, height: 10)
+                                Text(calendar.title)
+                            }
+                            .tag(calendar.calendarIdentifier)
+                        }
+                    } label: {
+                        Label("Add events to", systemImage: "calendar.badge.checkmark")
+                    }
+                }
+            } footer: {
+                Text("Events go to the selected calendar — e.g. a shared “Mowing” calendar the family can show or hide.")
+            }
+            .task {
+                await loadCalendars(requestingAccess: false)
             }
             Section("Day & Start Time") {
                 DatePicker("Day", selection: $model.scheduleStart, displayedComponents: .date)
                     .datePickerStyle(.graphical)
-                DatePicker("Start time", selection: $model.scheduleStart, displayedComponents: .hourAndMinute)
+                Picker("Start time", selection: startTimeBinding) {
+                    ForEach(TimeSlot.startSlots, id: \.self) { slot in
+                        Text(TimeSlot.display(slot)).tag(slot)
+                    }
+                }
             }
             Section {
                 Label(assignedSummary, systemImage: "person.2")
                     .font(.callout)
             }
         }
+    }
+
+    /// Bridges the scheduleStart Date to a working-hours "HH:mm" slot.
+    private var startTimeBinding: Binding<String> {
+        Binding(
+            get: {
+                let calendar = Calendar.current
+                let mins = calendar.component(.hour, from: model.scheduleStart) * 60
+                    + calendar.component(.minute, from: model.scheduleStart)
+                let rounded = Int((Double(mins) / Double(TimeSlot.increment)).rounded(.up)) * TimeSlot.increment
+                let clamped = min(max(rounded, TimeSlot.startMinutes), TimeSlot.maxStartMinutes)
+                return TimeSlot.string(fromMinutes: clamped)
+            },
+            set: { newValue in
+                if let date = TimeSlot.date(day: model.scheduleStart, hhmm: newValue) {
+                    model.scheduleStart = date
+                }
+            }
+        )
     }
 
     private var weekdayName: String {
@@ -202,6 +255,16 @@ struct ScheduleBuilderView: View {
                 }
             }
         }
+    }
+
+    /// Loads the writable calendar list. Only prompts for calendar permission
+    /// when the user explicitly taps the chooser; otherwise loads silently if
+    /// access was already granted.
+    private func loadCalendars(requestingAccess: Bool) async {
+        if EKEventStore.authorizationStatus(for: .event) != .fullAccess {
+            guard requestingAccess, await CalendarService.shared.requestAccess() else { return }
+        }
+        writableCalendars = CalendarService.shared.writableCalendars()
     }
 
     /// "Bi-weekly — due" or "Bi-weekly — visited 5 days ago".

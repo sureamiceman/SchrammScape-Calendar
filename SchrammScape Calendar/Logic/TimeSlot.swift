@@ -2,22 +2,23 @@
 //  TimeSlot.swift
 //  SchrammScape Calendar
 //
-//  Time helpers ported from app.js: 6 AM start, 15-minute increments.
+//  Time helpers: working hours 7 AM – 9 PM, 15-minute increments.
 //
 
 import Foundation
 
 nonisolated enum TimeSlot {
-    static let startMinutes = 6 * 60      // 6:00 AM
-    static let maxStartMinutes = 20 * 60  // 8:00 PM
+    static let startMinutes = 7 * 60      // 7:00 AM — start of working hours
+    static let endOfDayMinutes = 21 * 60  // 9:00 PM — end of working hours
+    static let maxStartMinutes = 20 * 60  // latest job start (so work can finish by 9 PM)
     static let increment = 15
 
-    /// Selectable start times (6:00 AM through 8:00 PM).
+    /// Selectable start times (7:00 AM through 8:00 PM).
     static let startSlots: [String] = stride(from: startMinutes, through: maxStartMinutes, by: increment)
         .map(string(fromMinutes:))
 
-    /// Selectable end times (6:15 AM through 9:00 PM).
-    static let endSlots: [String] = stride(from: startMinutes + increment, through: 21 * 60, by: increment)
+    /// Selectable end times (7:15 AM through 9:00 PM).
+    static let endSlots: [String] = stride(from: startMinutes + increment, through: endOfDayMinutes, by: increment)
         .map(string(fromMinutes:))
 
     static func minutes(from hhmm: String) -> Int? {
@@ -44,14 +45,21 @@ nonisolated enum TimeSlot {
         return string(fromMinutes: up)
     }
 
-    /// A localized "h:mm a" label for display.
+    /// 24-hour "HH:mm" label (the app always uses military time).
     static func display(_ hhmm: String) -> String {
         guard let mins = minutes(from: hhmm) else { return "—" }
-        var comps = DateComponents()
-        comps.hour = mins / 60
-        comps.minute = mins % 60
-        guard let date = Calendar.current.date(from: comps) else { return hhmm }
-        return date.formatted(.dateTime.hour().minute())
+        return string(fromMinutes: mins)
+    }
+
+    private static let clock24: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
+
+    /// 24-hour "HH:mm" label for a Date.
+    static func display(_ date: Date) -> String {
+        clock24.string(from: date)
     }
 
     /// Combines a calendar day with a "HH:mm" time into a concrete Date.

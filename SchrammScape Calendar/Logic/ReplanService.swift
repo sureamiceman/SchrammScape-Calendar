@@ -47,6 +47,8 @@ enum ReplanService {
             await reoptimizeDay(day, context: context)
         }
         try? context.save()
+        // Jobs may have moved on or off today — rebuild the GPS arrival fences.
+        JobAlertService.shared.syncTodayAlerts(context: context)
 
         let dayLabel = target.formatted(.dateTime.weekday(.abbreviated).month().day())
         let isToday = calendar.isDateInToday(target)

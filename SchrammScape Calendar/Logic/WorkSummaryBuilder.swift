@@ -15,7 +15,7 @@ nonisolated enum WorkSummaryBuilder {
         let day = record.scheduledStart.formatted(.dateTime.weekday(.abbreviated).month().day())
         var line = "Completed \(record.jobTitle) — \(day)"
         if let start = record.actualStart, let end = record.actualEnd {
-            let range = "\(start.formatted(.dateTime.hour().minute()))–\(end.formatted(.dateTime.hour().minute()))"
+            let range = "\(TimeSlot.display(start))–\(TimeSlot.display(end))"
             line += ", \(range)"
         }
         if let minutes = record.actualDurationMinutes {
