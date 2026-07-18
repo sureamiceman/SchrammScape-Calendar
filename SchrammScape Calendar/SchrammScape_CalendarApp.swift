@@ -14,7 +14,7 @@ struct SchrammScape_CalendarApp: App {
 
     init() {
         do {
-            container = try ModelContainer(for: Customer.self, WorkRecord.self, ServiceItem.self, JobType.self)
+            container = try ModelContainer(for: Customer.self, WorkRecord.self, ServiceItem.self, JobType.self, Invoice.self)
         } catch {
             fatalError("Could not create ModelContainer: \(error)")
         }

@@ -29,6 +29,14 @@ struct CustomerEditView: View {
                     TextField("Job title", text: $customer.jobTitle)
                     TextField("Duration (minutes or TBD)", text: $customer.durationLabel)
                         .keyboardType(.numbersAndPunctuation)
+                    HStack {
+                        Text("Rate per visit")
+                        Spacer()
+                        TextField("$0", value: $customer.defaultRate, format: .currency(code: "USD"))
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(maxWidth: 120)
+                    }
                 }
                 Section("Schedule") {
                     Picker("Day of week", selection: $customer.dayOfWeek) {

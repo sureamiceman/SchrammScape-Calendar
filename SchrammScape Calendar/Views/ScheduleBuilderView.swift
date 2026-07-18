@@ -57,7 +57,7 @@ struct ScheduleBuilderView: View {
                                 Label("Share .ics File", systemImage: "square.and.arrow.up")
                             }
                             Button(role: .destructive) {
-                                Task { await model.removeFromCalendar() }
+                                Task { await model.removeFromCalendar(context: context) }
                             } label: {
                                 Label("Remove From Calendar", systemImage: "calendar.badge.minus")
                             }
@@ -305,7 +305,7 @@ struct ScheduleBuilderView: View {
                         .onTapGesture { notesTarget = NotesTarget(id: job.id) }
                 }
                 .onMove { model.moveJobs(from: $0, to: $1) }
-                .onDelete { model.removeJobs(at: $0) }
+                .onDelete { model.removeJobs(at: $0, context: context) }
             } header: {
                 Text(model.scheduleStart.formatted(.dateTime.weekday(.wide).month().day()))
             } footer: {

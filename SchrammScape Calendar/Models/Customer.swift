@@ -29,6 +29,8 @@ final class Customer {
     var geocodeStatus: String = ""  // "" = unvalidated, "valid", "failed"
     /// Visit cadence in calendar weeks: 1 = weekly, 2 = bi-weekly.
     var visitIntervalWeeks: Int = 1
+    /// Default price per visit; pre-fills invoice lines (0 = unset).
+    var defaultRate: Double = 0
     /// Add-on services (weeding, edging, …) on their own per-visit rotations.
     @Relationship(deleteRule: .cascade, inverse: \ServiceItem.customer)
     var services: [ServiceItem] = []
@@ -52,7 +54,8 @@ final class Customer {
         phone: String = "",
         email: String = "",
         height: String = "",
-        visitIntervalWeeks: Int = 1
+        visitIntervalWeeks: Int = 1,
+        defaultRate: Double = 0
     ) {
         self.name = name
         self.address = address
@@ -67,6 +70,7 @@ final class Customer {
         self.email = email
         self.height = height
         self.visitIntervalWeeks = visitIntervalWeeks
+        self.defaultRate = defaultRate
     }
 
     var geocodeStatusValue: GeocodeStatus {

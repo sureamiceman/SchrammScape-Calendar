@@ -29,6 +29,8 @@ final class WorkRecord {
     var extraServices: [String] = []
     /// Free-form note about extra work done beyond the title (shown on invoices).
     var extraNotes: String = ""
+    /// Set when this visit is billed on an invoice (prevents double-billing).
+    var invoiceNumber: String?
     var eventIdentifier: String?
     // Geocode cache for the My Day map.
     var latitude: Double?

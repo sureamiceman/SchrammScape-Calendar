@@ -20,6 +20,7 @@ struct ParsedCustomer: Sendable {
     var email: String = ""
     var height: String = ""
     var visitIntervalWeeks: Int = 1
+    var defaultRate: Double = 0
 
     /// Builds a SwiftData model object from this parsed row.
     func makeCustomer(sortOrder: Int) -> Customer {
@@ -35,7 +36,8 @@ struct ParsedCustomer: Sendable {
             phone: phone,
             email: email,
             height: height,
-            visitIntervalWeeks: visitIntervalWeeks
+            visitIntervalWeeks: visitIntervalWeeks,
+            defaultRate: defaultRate
         )
     }
 }
@@ -57,6 +59,7 @@ nonisolated enum CSVSupport {
         let phoneIdx = headerIndex(headers, ["phone", "phonenumber", "tel", "telephone"])
         let emailIdx = headerIndex(headers, ["email", "emailaddress", "mail"])
         let freqIdx = headerIndex(headers, ["frequency", "visitweeks", "cadence"])
+        let rateIdx = headerIndex(headers, ["rate", "price", "ratepervisit"])
         let heightIdx = headerIndex(headers, ["height", "cuttingheight", "cutheight"])
 
         // Need at least a name or a location column to be meaningful.
@@ -84,15 +87,16 @@ nonisolated enum CSVSupport {
                 phone: cell(phoneIdx),
                 email: cell(emailIdx),
                 height: cell(heightIdx),
-                visitIntervalWeeks: parseFrequency(cell(freqIdx))
+                visitIntervalWeeks: parseFrequency(cell(freqIdx)),
+                defaultRate: Double(cell(rateIdx).replacingOccurrences(of: "$", with: "")) ?? 0
             )
         }
     }
 
     static func exportCSV(_ customers: [Customer]) -> String {
-        var rows: [[String]] = [["Customer", "Address", "Title", "duration", "DOW", "Mower", "Details", "Phone", "Email", "Height", "Frequency"]]
+        var rows: [[String]] = [["Customer", "Address", "Title", "duration", "DOW", "Mower", "Details", "Phone", "Email", "Height", "Frequency", "Rate"]]
         for c in customers {
-            rows.append([c.name, c.address, c.jobTitle, c.durationLabel, c.dayOfWeek, c.mower, c.details, c.phone, c.email, c.height, String(c.visitIntervalWeeks)])
+            rows.append([c.name, c.address, c.jobTitle, c.durationLabel, c.dayOfWeek, c.mower, c.details, c.phone, c.email, c.height, String(c.visitIntervalWeeks), c.defaultRate > 0 ? String(format: "%.2f", c.defaultRate) : ""])
         }
         return rows.map { $0.map(escapeCell).joined(separator: ",") }.joined(separator: "\r\n") + "\r\n"
     }

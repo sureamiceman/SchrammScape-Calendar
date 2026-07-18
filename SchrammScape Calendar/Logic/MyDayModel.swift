@@ -9,6 +9,7 @@
 import Foundation
 import SwiftData
 import MapKit
+import EventKit
 
 /// Feedback shown after completing a job: actual vs planned duration.
 struct DurationFeedback: Identifiable {
@@ -51,6 +52,28 @@ final class MyDayModel {
             sortBy: [SortDescriptor(\.scheduledStart)]
         )
         records = (try? context.fetch(descriptor)) ?? []
+        if pruneDeletedCalendarJobs(context: context) {
+            records = (try? context.fetch(descriptor)) ?? []
+        }
+    }
+
+    /// Removes open jobs whose calendar event was deleted (in the app's event
+    /// editor or the Calendar app), so My Day mirrors the calendar. Completed
+    /// jobs are kept — billing history must survive event deletion.
+    private func pruneDeletedCalendarJobs(context: ModelContext) -> Bool {
+        // Without calendar access every lookup returns nil; don't wipe the day.
+        guard EKEventStore.authorizationStatus(for: .event) == .fullAccess else { return false }
+        var pruned = false
+        for record in records
+        where record.statusValue == .scheduled || record.statusValue == .inProgress {
+            guard let eventId = record.eventIdentifier,
+                  CalendarService.shared.ekEvent(identifier: eventId) == nil else { continue }
+            JobAlertService.shared.cancelAlerts(record: record)
+            context.delete(record)
+            pruned = true
+        }
+        if pruned { try? context.save() }
+        return pruned
     }
 
     /// Geocodes any record missing coordinates, caching results on the record.

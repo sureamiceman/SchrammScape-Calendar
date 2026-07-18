@@ -34,4 +34,14 @@ enum TempFile {
             return nil
         }
     }
+
+    static func write(_ data: Data, name: String) -> URL? {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
+        do {
+            try data.write(to: url, options: .atomic)
+            return url
+        } catch {
+            return nil
+        }
+    }
 }

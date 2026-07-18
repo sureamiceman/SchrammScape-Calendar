@@ -16,12 +16,16 @@ struct WorkLogView: View {
         sort: [SortDescriptor(\WorkRecord.scheduledStart, order: .reverse)]
     )
     private var completed: [WorkRecord]
+    @Query(sort: [SortDescriptor(\Invoice.createdAt, order: .reverse)])
+    private var invoices: [Invoice]
 
     @State private var summaryCustomer = ""
     @State private var rangePreset: RangePreset = .thisMonth
     @State private var customFrom = Calendar.current.date(byAdding: .day, value: -30, to: .now) ?? .now
     @State private var customTo = Date.now
     @State private var shareItem: ShareItem?
+    @State private var showingInvoiceBuilder = false
+    @State private var showingInvoiceSettings = false
 
     private enum RangePreset: String, CaseIterable {
         case thisWeek = "This Week"
@@ -32,14 +36,112 @@ struct WorkLogView: View {
     var body: some View {
         NavigationStack {
             List {
+                invoicesSection
                 summarySection
                 historySection
             }
-            .navigationTitle("Work Log")
+            .navigationTitle("Billing")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showingInvoiceSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
+                }
+            }
             .sheet(item: $shareItem) { item in
                 ActivityView(items: [item.url])
             }
+            .sheet(isPresented: $showingInvoiceBuilder) {
+                InvoiceBuilderView()
+            }
+            .sheet(isPresented: $showingInvoiceSettings) {
+                InvoiceSettingsView()
+            }
         }
+    }
+
+    // MARK: - Invoices
+
+    private var invoicesSection: some View {
+        Section {
+            Button {
+                showingInvoiceBuilder = true
+            } label: {
+                Label("Create Invoice…", systemImage: "doc.badge.plus")
+            }
+            .disabled(completed.isEmpty)
+            ForEach(invoices, id: \.persistentModelID) { invoice in
+                Button {
+                    shareInvoicePDF(invoice)
+                } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("\(invoice.number) — \(invoice.customerName)")
+                            Text(invoice.issueDate.formatted(date: .abbreviated, time: .omitted))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Text(invoice.total.formatted(.currency(code: "USD")))
+                            .font(.subheadline)
+                        Text(invoice.statusValue == .paid ? "PAID" : "OPEN")
+                            .font(.caption2.bold())
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(
+                                (invoice.statusValue == .paid ? Color.green : Color.orange).opacity(0.2),
+                                in: Capsule()
+                            )
+                            .foregroundStyle(invoice.statusValue == .paid ? .green : .orange)
+                    }
+                }
+                .tint(.primary)
+                .swipeActions(edge: .trailing) {
+                    Button(role: .destructive) {
+                        deleteInvoice(invoice)
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                    Button {
+                        invoice.statusValue = invoice.statusValue == .paid ? .open : .paid
+                        try? context.save()
+                    } label: {
+                        Label(
+                            invoice.statusValue == .paid ? "Reopen" : "Mark Paid",
+                            systemImage: invoice.statusValue == .paid ? "arrow.uturn.left" : "checkmark.seal"
+                        )
+                    }
+                    .tint(.green)
+                }
+            }
+        } header: {
+            Text("Invoices")
+        } footer: {
+            if !invoices.isEmpty {
+                Text("Tap an invoice to share its PDF again. Swipe for Mark Paid / Delete.")
+            }
+        }
+    }
+
+    private func shareInvoicePDF(_ invoice: Invoice) {
+        if let url = InvoicePDFBuilder.makePDF(invoice: invoice) {
+            shareItem = ShareItem(url: url)
+        }
+    }
+
+    private func deleteInvoice(_ invoice: Invoice) {
+        // Un-mark its visits so they can be billed again.
+        let number = invoice.number
+        let descriptor = FetchDescriptor<WorkRecord>(
+            predicate: #Predicate { $0.invoiceNumber == number }
+        )
+        for record in (try? context.fetch(descriptor)) ?? [] {
+            record.invoiceNumber = nil
+        }
+        context.delete(invoice)
+        try? context.save()
     }
 
     // MARK: - Summary generator
@@ -161,7 +263,17 @@ struct WorkLogView: View {
                     Section(day.formatted(.dateTime.weekday(.wide).month().day())) {
                         ForEach(groups[day] ?? [], id: \.persistentModelID) { record in
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(record.jobTitle)
+                                HStack {
+                                    Text(record.jobTitle)
+                                    if let number = record.invoiceNumber {
+                                        Text(number)
+                                            .font(.caption2.bold())
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 1)
+                                            .background(.blue.opacity(0.15), in: Capsule())
+                                            .foregroundStyle(.blue)
+                                    }
+                                }
                                 HStack {
                                     if let start = record.actualStart, let end = record.actualEnd {
                                         Text("\(TimeSlot.display(start)) – \(TimeSlot.display(end))")
@@ -229,5 +341,44 @@ struct WorkLogView: View {
         if let url = TempFile.write(summaryText, name: "work-summary.txt") {
             shareItem = ShareItem(url: url)
         }
+    }
+}
+
+// MARK: - Invoice letterhead settings
+
+private struct InvoiceSettingsView: View {
+    @Environment(\.dismiss) private var dismiss
+    @AppStorage(BusinessInfo.nameKey) private var businessName = ""
+    @AppStorage(BusinessInfo.addressKey) private var businessAddress = ""
+    @AppStorage(BusinessInfo.phoneKey) private var businessPhone = ""
+    @AppStorage(BusinessInfo.emailKey) private var businessEmail = ""
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Business name", text: $businessName, prompt: Text("SchrammScape"))
+                    TextField("Address", text: $businessAddress)
+                    TextField("Phone", text: $businessPhone)
+                        .keyboardType(.phonePad)
+                    TextField("Email", text: $businessEmail)
+                        .keyboardType(.emailAddress)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                } header: {
+                    Text("Invoice Letterhead")
+                } footer: {
+                    Text("Printed in the header of every invoice PDF.")
+                }
+            }
+            .navigationTitle("Invoice Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+        .presentationDetents([.medium])
     }
 }

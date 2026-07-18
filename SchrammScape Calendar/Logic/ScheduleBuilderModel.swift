@@ -263,12 +263,31 @@ final class ScheduleBuilderModel {
         }
     }
 
-    func removeJobs(at offsets: IndexSet) {
+    func removeJobs(at offsets: IndexSet, context: ModelContext) {
+        let removed = offsets.compactMap { jobs.indices.contains($0) ? jobs[$0] : nil }
         jobs.remove(atOffsets: offsets)
+        // A job already sent to the calendar takes its event and work record with it.
+        for job in removed {
+            if let eventId = job.eventIdentifier {
+                try? CalendarService.shared.remove(identifier: eventId)
+                deleteWorkRecord(eventIdentifier: eventId, context: context)
+            }
+        }
         Task {
             await rechainTimes()
             statusMessage = jobs.isEmpty ? "" : summaryLine()
         }
+    }
+
+    /// Deletes the persistent WorkRecord backing a removed calendar event.
+    private func deleteWorkRecord(eventIdentifier: String, context: ModelContext) {
+        let descriptor = FetchDescriptor<WorkRecord>(
+            predicate: #Predicate { $0.eventIdentifier == eventIdentifier }
+        )
+        guard let record = try? context.fetch(descriptor).first else { return }
+        JobAlertService.shared.cancelAlerts(record: record)
+        context.delete(record)
+        try? context.save()
     }
 
     /// First job starts at `scheduleStart`; each following job starts at the
@@ -425,7 +444,7 @@ final class ScheduleBuilderModel {
         record.eventIdentifier = job.eventIdentifier
     }
 
-    func removeFromCalendar() async {
+    func removeFromCalendar(context: ModelContext) async {
         errorMessage = nil
         isWorking = true
         defer { isWorking = false }
@@ -440,6 +459,7 @@ final class ScheduleBuilderModel {
             for idx in jobs.indices {
                 if let id = jobs[idx].eventIdentifier {
                     try CalendarService.shared.remove(identifier: id)
+                    deleteWorkRecord(eventIdentifier: id, context: context)
                     jobs[idx].eventIdentifier = nil
                     removed += 1
                 }
