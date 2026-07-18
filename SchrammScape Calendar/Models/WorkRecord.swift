@@ -12,13 +12,14 @@ import SwiftData
 
 @Model
 final class WorkRecord {
-    var customerName: String
-    var address: String
-    var jobTitle: String
-    var phone: String
-    var notes: String
-    var scheduledStart: Date
-    var scheduledEnd: Date
+    // CloudKit sync requires inline defaults (or optionals) on all stored properties.
+    var customerName: String = ""
+    var address: String = ""
+    var jobTitle: String = ""
+    var phone: String = ""
+    var notes: String = ""
+    var scheduledStart: Date = Date.now
+    var scheduledEnd: Date = Date.now
     var actualStart: Date?
     var actualEnd: Date?
     var status: String = Status.scheduled.rawValue
@@ -35,7 +36,7 @@ final class WorkRecord {
     // Geocode cache for the My Day map.
     var latitude: Double?
     var longitude: Double?
-    var createdAt: Date
+    var createdAt: Date = Date.now
 
     enum Status: String {
         case scheduled

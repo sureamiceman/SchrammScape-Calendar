@@ -10,12 +10,13 @@ import SwiftData
 
 @Model
 final class Customer {
-    var name: String
-    var address: String
-    var jobTitle: String
-    var durationLabel: String
-    var sortOrder: Int
-    var createdAt: Date
+    // CloudKit sync requires inline defaults (or optionals) on all stored properties.
+    var name: String = ""
+    var address: String = ""
+    var jobTitle: String = ""
+    var durationLabel: String = ""
+    var sortOrder: Int = 0
+    var createdAt: Date = Date.now
     // Extended fields from the Supabase customer table.
     var dayOfWeek: String = ""   // MON, TUE, WED, THU, FRI ("" = unassigned)
     var mower: String = ""       // e.g. "42", "PUSH", "42+PUSH"
@@ -32,8 +33,9 @@ final class Customer {
     /// Default price per visit; pre-fills invoice lines (0 = unset).
     var defaultRate: Double = 0
     /// Add-on services (weeding, edging, …) on their own per-visit rotations.
+    /// Optional because CloudKit requires all relationships to be optional.
     @Relationship(deleteRule: .cascade, inverse: \ServiceItem.customer)
-    var services: [ServiceItem] = []
+    var services: [ServiceItem]?
 
     enum GeocodeStatus: String {
         case unvalidated = ""
@@ -100,7 +102,7 @@ final class Customer {
 
     /// Sorted, active add-on services.
     var sortedServices: [ServiceItem] {
-        services.sorted { ($0.sortOrder, $0.name) < ($1.sortOrder, $1.name) }
+        (services ?? []).sorted { ($0.sortOrder, $0.name) < ($1.sortOrder, $1.name) }
     }
 
     /// Matches the web app's customer picker label: "Name - Address".

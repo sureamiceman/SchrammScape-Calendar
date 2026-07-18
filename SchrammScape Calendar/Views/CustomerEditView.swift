@@ -141,7 +141,7 @@ struct CustomerEditView: View {
     }
 
     private func addService(name: String, duration: Int) {
-        let nextOrder = (customer.services.map(\.sortOrder).max() ?? -1) + 1
+        let nextOrder = (customer.sortedServices.map(\.sortOrder).max() ?? -1) + 1
         let service = ServiceItem(
             name: name,
             durationMinutes: duration,

@@ -11,11 +11,12 @@ import SwiftData
 
 @Model
 final class ServiceItem {
-    var name: String
-    var durationMinutes: Int
+    // CloudKit sync requires inline defaults (or optionals) on all stored properties.
+    var name: String = ""
+    var durationMinutes: Int = 15
     /// 1 = every visit, 2 = every other visit, 3 = every third visit…
-    var intervalVisits: Int
-    var sortOrder: Int
+    var intervalVisits: Int = 2
+    var sortOrder: Int = 0
     var customer: Customer?
 
     init(

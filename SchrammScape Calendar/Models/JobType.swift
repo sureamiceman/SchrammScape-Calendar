@@ -12,12 +12,13 @@ import SwiftData
 
 @Model
 final class JobType {
-    var name: String
-    var defaultDurationMinutes: Int
+    // CloudKit sync requires inline defaults (or optionals) on all stored properties.
+    var name: String = ""
+    var defaultDurationMinutes: Int = 30
     /// True for the standard base service applied to routine visits.
-    var isDefault: Bool
-    var sortOrder: Int
-    var createdAt: Date
+    var isDefault: Bool = false
+    var sortOrder: Int = 0
+    var createdAt: Date = Date.now
 
     init(
         name: String = "",

@@ -20,14 +20,15 @@ struct InvoiceLine: Codable, Hashable, Identifiable {
 
 @Model
 final class Invoice {
-    var number: String
-    var customerName: String
-    var customerAddress: String
-    var issueDate: Date
+    // CloudKit sync requires inline defaults (or optionals) on all stored properties.
+    var number: String = ""
+    var customerName: String = ""
+    var customerAddress: String = ""
+    var issueDate: Date = Date.now
     var status: String = Status.open.rawValue
-    var notes: String
-    var lines: [InvoiceLine]
-    var createdAt: Date
+    var notes: String = ""
+    var lines: [InvoiceLine] = []
+    var createdAt: Date = Date.now
 
     enum Status: String {
         case open
