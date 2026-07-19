@@ -107,6 +107,7 @@ final class MyDayModel {
         record.statusValue = .completed
         try? context.save()
         JobAlertService.shared.cancelAlerts(record: record)
+        Task { await MileageLogger.logLeg(to: record, context: context) }
         if let actual = record.actualDurationMinutes {
             feedback = DurationFeedback(
                 record: record,

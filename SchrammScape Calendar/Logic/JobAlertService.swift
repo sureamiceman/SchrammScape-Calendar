@@ -180,6 +180,9 @@ final class JobAlertService: NSObject {
         record.statusValue = .completed
         try? container?.mainContext.save()
         cancelAlerts(record: record)
+        if let context = container?.mainContext {
+            Task { await MileageLogger.logLeg(to: record, context: context) }
+        }
     }
 }
 

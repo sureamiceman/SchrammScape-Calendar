@@ -18,6 +18,15 @@ struct WorkLogView: View {
     private var completed: [WorkRecord]
     @Query(sort: [SortDescriptor(\Invoice.createdAt, order: .reverse)])
     private var invoices: [Invoice]
+    @Query(sort: [SortDescriptor(\MileageEntry.date, order: .reverse)])
+    private var mileage: [MileageEntry]
+    @State private var mileageRange: MileageRange = .thisMonth
+
+    private enum MileageRange: String, CaseIterable {
+        case thisMonth = "This Month"
+        case thisYear = "This Year"
+        case all = "All"
+    }
 
     @State private var summaryCustomer = ""
     @State private var rangePreset: RangePreset = .thisMonth
@@ -37,6 +46,7 @@ struct WorkLogView: View {
         NavigationStack {
             List {
                 invoicesSection
+                mileageSection
                 summarySection
                 historySection
             }
@@ -142,6 +152,80 @@ struct WorkLogView: View {
         }
         context.delete(invoice)
         try? context.save()
+    }
+
+    // MARK: - Mileage (tax log)
+
+    private var mileageInRange: [MileageEntry] {
+        let calendar = Calendar.current
+        switch mileageRange {
+        case .thisMonth:
+            return mileage.filter { calendar.isDate($0.date, equalTo: .now, toGranularity: .month) }
+        case .thisYear:
+            return mileage.filter { calendar.isDate($0.date, equalTo: .now, toGranularity: .year) }
+        case .all:
+            return mileage
+        }
+    }
+
+    private var mileageSection: some View {
+        Section {
+            if mileage.isEmpty {
+                Text("Business miles log automatically as jobs are completed.")
+                    .foregroundStyle(.secondary)
+            } else {
+                Picker("Period", selection: $mileageRange) {
+                    ForEach(MileageRange.allCases, id: \.self) { range in
+                        Text(range.rawValue).tag(range)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                let entries = mileageInRange
+                LabeledContent("Total business miles") {
+                    Text(String(format: "%.1f mi", entries.map(\.miles).reduce(0, +)))
+                        .font(.headline)
+                }
+
+                let byDay = Dictionary(grouping: entries) { Calendar.current.startOfDay(for: $0.date) }
+                ForEach(byDay.keys.sorted(by: >).prefix(5), id: \.self) { day in
+                    let dayMiles = (byDay[day] ?? []).map(\.miles).reduce(0, +)
+                    LabeledContent(day.formatted(.dateTime.weekday(.abbreviated).month().day())) {
+                        Text(String(format: "%.1f mi", dayMiles))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Button {
+                    exportMileageCSV()
+                } label: {
+                    Label("Export Mileage CSV", systemImage: "square.and.arrow.up")
+                }
+                .disabled(entries.isEmpty)
+            }
+        } header: {
+            Text("Mileage")
+        } footer: {
+            if !mileage.isEmpty {
+                Text("Road distances between completed stops, logged automatically. Recent days shown; the CSV export has every leg for your taxes.")
+            }
+        }
+    }
+
+    private func exportMileageCSV() {
+        let entries = mileageInRange.sorted { $0.date < $1.date }
+        var lines = ["Date,From,To,Miles"]
+        for entry in entries {
+            let date = entry.date.formatted(.iso8601.year().month().day())
+            let from = entry.fromLabel.replacingOccurrences(of: ",", with: " ")
+            let to = entry.toLabel.replacingOccurrences(of: ",", with: " ")
+            lines.append("\(date),\(from),\(to),\(String(format: "%.2f", entry.miles))")
+        }
+        lines.append("TOTAL,,,\(String(format: "%.2f", entries.map(\.miles).reduce(0, +)))")
+        if let url = TempFile.write(lines.joined(separator: "\n"), name: "mileage-log.csv") {
+            shareItem = ShareItem(url: url)
+        }
     }
 
     // MARK: - Summary generator
