@@ -28,6 +28,10 @@ final class Invoice {
     var notes: String
     var lines: [InvoiceLine]
     var createdAt: Date
+    // Sync metadata (Supabase).
+    var remoteID: UUID = UUID()
+    var syncedAt: Date?
+    var isDirty: Bool = true
 
     enum Status: String {
         case open

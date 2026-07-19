@@ -34,6 +34,10 @@ final class Customer {
     /// Add-on services (weeding, edging, …) on their own per-visit rotations.
     @Relationship(deleteRule: .cascade, inverse: \ServiceItem.customer)
     var services: [ServiceItem] = []
+    // Sync metadata (Supabase).
+    var remoteID: UUID = UUID()
+    var syncedAt: Date?
+    var isDirty: Bool = true
 
     enum GeocodeStatus: String {
         case unvalidated = ""

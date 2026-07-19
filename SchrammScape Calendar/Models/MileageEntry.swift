@@ -19,6 +19,10 @@ final class MileageEntry {
     /// The completed job this leg arrived at (one entry per job).
     var eventIdentifier: String?
     var createdAt: Date = Date.now
+    // Sync metadata (Supabase).
+    var remoteID: UUID = UUID()
+    var syncedAt: Date?
+    var isDirty: Bool = true
 
     init(
         date: Date = .now,

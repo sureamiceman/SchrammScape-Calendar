@@ -17,6 +17,10 @@ final class ServiceItem {
     var intervalVisits: Int
     var sortOrder: Int
     var customer: Customer?
+    // Sync metadata (Supabase).
+    var remoteID: UUID = UUID()
+    var syncedAt: Date?
+    var isDirty: Bool = true
 
     init(
         name: String = "",

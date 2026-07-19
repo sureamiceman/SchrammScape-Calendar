@@ -18,6 +18,10 @@ final class JobType {
     var isDefault: Bool
     var sortOrder: Int
     var createdAt: Date
+    // Sync metadata (Supabase).
+    var remoteID: UUID = UUID()
+    var syncedAt: Date?
+    var isDirty: Bool = true
 
     init(
         name: String = "",

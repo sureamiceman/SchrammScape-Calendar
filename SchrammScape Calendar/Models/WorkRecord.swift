@@ -36,6 +36,12 @@ final class WorkRecord {
     var latitude: Double?
     var longitude: Double?
     var createdAt: Date
+    /// Who works this job (profiles.user_id); nil until assigned at creation.
+    var assignedTo: UUID?
+    // Sync metadata (Supabase).
+    var remoteID: UUID = UUID()
+    var syncedAt: Date?
+    var isDirty: Bool = true
 
     enum Status: String {
         case scheduled
