@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		CC72D48F300E4F1D00287E95 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = CC72D48E300E4F1D00287E95 /* Supabase */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		CC43285F2FF5FB9500481468 /* SchrammScape Calendar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "SchrammScape Calendar.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CC72D48F300E4F1D00287E95 /* Supabase in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -33,6 +38,7 @@
 			isa = PBXGroup;
 			children = (
 				CC4328612FF5FB9500481468 /* SchrammScape Calendar */,
+				CC72D48D300E4EC000287E95 /* Frameworks */,
 				CC4328602FF5FB9500481468 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -43,6 +49,13 @@
 				CC43285F2FF5FB9500481468 /* SchrammScape Calendar.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		CC72D48D300E4EC000287E95 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -65,6 +78,7 @@
 			);
 			name = "SchrammScape Calendar";
 			packageProductDependencies = (
+				CC72D48E300E4F1D00287E95 /* Supabase */,
 			);
 			productName = "SchrammScape Calendar";
 			productReference = CC43285F2FF5FB9500481468 /* SchrammScape Calendar.app */;
@@ -94,6 +108,9 @@
 			);
 			mainGroup = CC4328562FF5FB9500481468;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				CC72D486300C5E2700287E95 /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = CC4328602FF5FB9500481468 /* Products */;
 			projectDirPath = "";
@@ -361,6 +378,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		CC72D486300C5E2700287E95 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		CC72D48E300E4F1D00287E95 /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CC72D486300C5E2700287E95 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = CC4328572FF5FB9500481468 /* Project object */;
 }

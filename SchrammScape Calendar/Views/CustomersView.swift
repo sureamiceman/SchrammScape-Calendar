@@ -127,11 +127,17 @@ struct CustomersView: View {
     }
 
     private func delete(_ offsets: IndexSet) {
-        for index in offsets { context.delete(customers[index]) }
+        for index in offsets {
+            SyncEngine.shared.softDeleteRemote(table: "customers", id: customers[index].remoteID)
+            context.delete(customers[index])
+        }
     }
 
     private func resetToDefault() {
-        for customer in customers { context.delete(customer) }
+        for customer in customers {
+            SyncEngine.shared.softDeleteRemote(table: "customers", id: customer.remoteID)
+            context.delete(customer)
+        }
         for (index, parsed) in DefaultCustomers.all.enumerated() {
             context.insert(parsed.makeCustomer(sortOrder: index))
         }
@@ -157,6 +163,7 @@ struct CustomersView: View {
                     customer.geocodeStatusValue = .failed
                     failures.append(customer.name.isEmpty ? customer.address : customer.name)
                 }
+                customer.markDirty()
             }
             try? context.save()
             statusMessage = failures.isEmpty
@@ -186,7 +193,10 @@ struct CustomersView: View {
                     statusMessage = "No usable rows found in that CSV."
                     return
                 }
-                for customer in customers { context.delete(customer) }
+                for customer in customers {
+                    SyncEngine.shared.softDeleteRemote(table: "customers", id: customer.remoteID)
+                    context.delete(customer)
+                }
                 for (index, item) in parsed.enumerated() {
                     context.insert(item.makeCustomer(sortOrder: index))
                 }

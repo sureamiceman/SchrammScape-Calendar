@@ -164,8 +164,10 @@ final class JobAlertService: NSObject {
               record.statusValue == .scheduled else { return }
         record.actualStart = .now
         record.statusValue = .inProgress
+        record.markDirty()
         try? container?.mainContext.save()
         scheduleDepartureAlert(record: record)
+        Task { await SyncEngine.shared.syncNow() }
     }
 
     /// Quiet completion: toggles the state only — no duration feedback,
@@ -178,10 +180,14 @@ final class JobAlertService: NSObject {
         }
         record.actualEnd = .now
         record.statusValue = .completed
+        record.markDirty()
         try? container?.mainContext.save()
         cancelAlerts(record: record)
         if let context = container?.mainContext {
-            Task { await MileageLogger.logLeg(to: record, context: context) }
+            Task {
+                await MileageLogger.logLeg(to: record, context: context)
+                await SyncEngine.shared.syncNow()
+            }
         }
     }
 }

@@ -2,8 +2,9 @@
 -- Multi-user: profiles with roles; work_records carry assigned_to.
 -- Sync model: client-generated uuid ids, updated_at (trigger), soft deletes.
 
--- The original one-time import table is superseded by the app's data.
+-- The original web-app tables are superseded by the app's data.
 drop table if exists public.customers;
+drop table if exists public.reference_customers;
 
 -- Shared trigger: keep updated_at current on every write.
 create or replace function public.set_updated_at()

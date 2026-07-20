@@ -95,7 +95,12 @@ struct CustomerEditView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                    Button("Done") {
+                        customer.markDirty()
+                        customer.sortedServices.forEach { $0.markDirty() }
+                        Task { await SyncEngine.shared.syncNow() }
+                        dismiss()
+                    }
                 }
             }
         }

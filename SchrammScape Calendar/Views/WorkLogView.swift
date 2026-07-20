@@ -116,7 +116,9 @@ struct WorkLogView: View {
                     }
                     Button {
                         invoice.statusValue = invoice.statusValue == .paid ? .open : .paid
+                        invoice.markDirty()
                         try? context.save()
+                        Task { await SyncEngine.shared.syncNow() }
                     } label: {
                         Label(
                             invoice.statusValue == .paid ? "Reopen" : "Mark Paid",
@@ -149,9 +151,12 @@ struct WorkLogView: View {
         )
         for record in (try? context.fetch(descriptor)) ?? [] {
             record.invoiceNumber = nil
+            record.markDirty()
         }
+        SyncEngine.shared.softDeleteRemote(table: "invoices", id: invoice.remoteID)
         context.delete(invoice)
         try? context.save()
+        Task { await SyncEngine.shared.syncNow() }
     }
 
     // MARK: - Mileage (tax log)
@@ -383,6 +388,7 @@ struct WorkLogView: View {
                         .onDelete { offsets in
                             let dayRecords = groups[day] ?? []
                             for index in offsets where index < dayRecords.count {
+                                SyncEngine.shared.softDeleteRemote(table: "work_records", id: dayRecords[index].remoteID)
                                 context.delete(dayRecords[index])
                             }
                         }

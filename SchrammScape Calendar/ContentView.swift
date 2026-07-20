@@ -10,7 +10,10 @@ import SwiftData
 
 struct ContentView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.scenePhase) private var scenePhase
     @Query private var records: [WorkRecord]
+    @State private var supabase = SupabaseService.shared
+    @State private var restoredSession = false
 
     /// Jobs scheduled for today that aren't finished yet — shown as the My Day badge.
     private var todaysOpenJobCount: Int {
@@ -23,6 +26,29 @@ struct ContentView: View {
     }
 
     var body: some View {
+        Group {
+            if supabase.isSignedIn {
+                tabs
+            } else if restoredSession {
+                LoginView()
+            } else {
+                ProgressView()
+            }
+        }
+        .task {
+            SeedData.seedIfNeeded(context)
+            await supabase.restoreSession()
+            restoredSession = true
+            await SyncEngine.shared.syncNow()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                Task { await SyncEngine.shared.syncNow() }
+            }
+        }
+    }
+
+    private var tabs: some View {
         TabView {
             ScheduleBuilderView()
                 .tabItem { Label("Schedule", systemImage: "calendar") }
@@ -35,9 +61,6 @@ struct ContentView: View {
                 .badge(todaysOpenJobCount)
             WorkLogView()
                 .tabItem { Label("Billing", systemImage: "checklist") }
-        }
-        .task {
-            SeedData.seedIfNeeded(context)
         }
     }
 }

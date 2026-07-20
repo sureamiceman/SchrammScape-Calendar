@@ -40,6 +40,7 @@ enum ReplanService {
             record.statusValue = .scheduled
             record.actualStart = nil
             record.actualEnd = nil
+            record.markDirty()
         }
 
         await reoptimizeDay(target, context: context)
@@ -49,6 +50,7 @@ enum ReplanService {
         try? context.save()
         // Jobs may have moved on or off today — rebuild the GPS arrival fences.
         JobAlertService.shared.syncTodayAlerts(context: context)
+        Task { await SyncEngine.shared.syncNow() }
 
         let dayLabel = target.formatted(.dateTime.weekday(.abbreviated).month().day())
         let isToday = calendar.isDateInToday(target)
@@ -129,6 +131,7 @@ enum ReplanService {
             cursor += duration
             record.scheduledEnd = TimeSlot.date(day: dayStart, hhmm: TimeSlot.string(fromMinutes: cursor))
                 ?? record.scheduledEnd
+            record.markDirty()
             if let lat = record.latitude, let lon = record.longitude {
                 previous = CLLocationCoordinate2D(latitude: lat, longitude: lon)
             }

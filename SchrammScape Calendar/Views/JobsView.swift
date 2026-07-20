@@ -81,7 +81,10 @@ struct JobsView: View {
     }
 
     private func delete(_ offsets: IndexSet) {
-        for index in offsets { context.delete(jobTypes[index]) }
+        for index in offsets {
+            SyncEngine.shared.softDeleteRemote(table: "job_types", id: jobTypes[index].remoteID)
+            context.delete(jobTypes[index])
+        }
     }
 }
 
@@ -111,7 +114,11 @@ private struct JobTypeEditView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                    Button("Done") {
+                        jobType.markDirty()
+                        Task { await SyncEngine.shared.syncNow() }
+                        dismiss()
+                    }
                 }
             }
         }

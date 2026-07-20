@@ -548,6 +548,7 @@ private struct AddExtraJobView: View {
                         }
                         .onDelete { offsets in
                             record.extraServices.remove(atOffsets: offsets)
+                            record.markDirty()
                             try? context.save()
                         }
                     }
@@ -568,6 +569,7 @@ private struct AddExtraJobView: View {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty, !record.extraServices.contains(trimmed) else { return }
         record.extraServices.append(trimmed)
+        record.markDirty()
         try? context.save()
         customName = ""
     }
@@ -598,6 +600,7 @@ private struct ExtraCommentView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
+                        record.markDirty()
                         try? context.save()
                         dismiss()
                     }

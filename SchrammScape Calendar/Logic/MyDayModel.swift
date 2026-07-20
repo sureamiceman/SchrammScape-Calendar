@@ -69,6 +69,7 @@ final class MyDayModel {
             guard let eventId = record.eventIdentifier,
                   CalendarService.shared.ekEvent(identifier: eventId) == nil else { continue }
             JobAlertService.shared.cancelAlerts(record: record)
+            SyncEngine.shared.softDeleteRemote(table: "work_records", id: record.remoteID)
             context.delete(record)
             pruned = true
         }
@@ -92,7 +93,9 @@ final class MyDayModel {
     func checkIn(_ record: WorkRecord, context: ModelContext) {
         record.actualStart = .now
         record.statusValue = .inProgress
+        record.markDirty()
         try? context.save()
+        Task { await SyncEngine.shared.syncNow() }
         // Swap the arrival fence for a departure fence.
         JobAlertService.shared.cancelAlerts(record: record)
         JobAlertService.shared.scheduleDepartureAlert(record: record)
@@ -105,9 +108,13 @@ final class MyDayModel {
         }
         record.actualEnd = .now
         record.statusValue = .completed
+        record.markDirty()
         try? context.save()
         JobAlertService.shared.cancelAlerts(record: record)
-        Task { await MileageLogger.logLeg(to: record, context: context) }
+        Task {
+            await MileageLogger.logLeg(to: record, context: context)
+            await SyncEngine.shared.syncNow()
+        }
         if let actual = record.actualDurationMinutes {
             feedback = DurationFeedback(
                 record: record,
@@ -126,6 +133,7 @@ final class MyDayModel {
             return
         }
         customer.durationLabel = String(minutes)
+        customer.markDirty()
         try? context.save()
         statusMessage = "\(name)'s default duration updated to \(minutes) min."
     }

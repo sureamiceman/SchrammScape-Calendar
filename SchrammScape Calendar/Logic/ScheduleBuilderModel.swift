@@ -286,6 +286,7 @@ final class ScheduleBuilderModel {
         )
         guard let record = try? context.fetch(descriptor).first else { return }
         JobAlertService.shared.cancelAlerts(record: record)
+        SyncEngine.shared.softDeleteRemote(table: "work_records", id: record.remoteID)
         context.delete(record)
         try? context.save()
     }
@@ -401,6 +402,7 @@ final class ScheduleBuilderModel {
             try? context.save()
             // If today was (re)scheduled, refresh the GPS arrival fences.
             JobAlertService.shared.syncTodayAlerts(context: context)
+            Task { await SyncEngine.shared.syncNow() }
             var parts: [String] = []
             if created > 0 { parts.append("\(created) added") }
             if updated > 0 { parts.append("\(updated) updated") }
@@ -442,6 +444,10 @@ final class ScheduleBuilderModel {
         record.plannedDurationMinutes = job.durationMinutes
         record.servicesPerformed = job.addOnOptions.filter(\.included).map(\.name)
         record.eventIdentifier = job.eventIdentifier
+        if record.assignedTo == nil {
+            record.assignedTo = SupabaseService.shared.currentUserID
+        }
+        record.markDirty()
     }
 
     func removeFromCalendar(context: ModelContext) async {
